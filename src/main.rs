@@ -1,0 +1,47 @@
+use std::env;
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
+
+#[derive(Debug)]
+struct Message {
+    protocol_version: u16,
+    nonce: u16,
+    text: String,
+}
+
+fn main() {
+    let mut args = env::args().skip(1);
+    let mode = args.next().unwrap();
+    let host = args.next().unwrap_or_else(|| "127.0.0.1:7175".into());
+
+    let stream = if mode == "connect" {
+        TcpStream::connect(host).unwrap()
+    } else {
+        TcpListener::bind(host).unwrap().accept().unwrap().0
+    };
+
+    handler(stream);
+}
+
+fn handler(mut stream: TcpStream) {
+    let mut protocol_version = [0; 2];
+    stream.read_exact(&mut protocol_version).unwrap();
+    let protocol_version = u16::from_be_bytes(protocol_version);
+
+    let mut data = [0; 4];
+    stream.read_exact(&mut data).unwrap();
+    let nonce = u16::from_be_bytes(data[0..2].try_into().unwrap());
+    let text_len = u16::from_be_bytes(data[2..4].try_into().unwrap()).into();
+
+    let mut text = vec![0; text_len];
+    stream.read_exact(&mut text).unwrap();
+
+    let message = Message {
+        protocol_version,
+        nonce,
+        text: String::from_utf8(text).unwrap(),
+    };
+
+    println!("{message:?}");
+    writeln!(stream, "siemanko").unwrap();
+}
