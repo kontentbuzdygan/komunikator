@@ -1,6 +1,7 @@
-use std::env;
 use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{SocketAddr, TcpListener, TcpStream};
+
+use clap::Parser;
 
 #[derive(Debug)]
 struct Message {
@@ -9,15 +10,26 @@ struct Message {
     text: String,
 }
 
-fn main() {
-    let mut args = env::args().skip(1);
-    let mode = args.next().unwrap();
-    let host = args.next().unwrap_or_else(|| "127.0.0.1:7175".into());
+#[derive(clap::Parser, Clone, Copy)]
+struct Args {
+    #[command(subcommand)]
+    mode: Mode,
+}
 
-    let stream = if mode == "connect" {
-        TcpStream::connect(host).unwrap()
-    } else {
-        TcpListener::bind(host).unwrap().accept().unwrap().0
+#[derive(clap::Subcommand, Clone, Copy)]
+enum Mode {
+    /// Bind a TCP listener and wait for connections
+    Listen { addr: SocketAddr },
+    /// Connect to an existing node
+    Connect { addr: SocketAddr },
+}
+
+fn main() {
+    let args = Args::parse();
+
+    let stream = match args.mode {
+        Mode::Listen { addr } => TcpListener::bind(addr).unwrap().accept().unwrap().0,
+        Mode::Connect { addr } => TcpStream::connect(addr).unwrap(),
     };
 
     handler(stream);
