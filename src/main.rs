@@ -1,7 +1,6 @@
+use clap::Parser;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
-
-use clap::Parser;
 
 #[derive(Debug)]
 struct Message {
